@@ -1,0 +1,9 @@
+backend "consul" {
+  address = "{{consul_address}}:{{consul_port}}"
+  path = "vault"
+}
+
+listener "tcp" {
+  address = "{{public_address}}:8200"
+  tls_disable = 1
+}
