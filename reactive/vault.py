@@ -2,29 +2,63 @@ import shutil
 import os
 
 from charmhelpers.core import hookenv
-from charmhelpers.core.host import log
+from charmhelpers.core.host import log, mkdir
 from charmhelpers.core.templating import render
-from charms.reactive import when
+from charms.reactive import when, when_not, hook
+from charms.reactive import is_state, set_state, remove_state
+
+from charmhelpers.core.host import (
+    adduser,
+    service_stop,
+    service_restart,
+    service_running,
+    service_start,
+)
 
 
 @when('consul.available')
+@when_not('vault.running')
 def setup_vault(consul):
-    shutil.copyfile('vault', '/usr/local/bin/vault')
-    pass
+    render(
+        source='config.hcl',
+        target='/etc/vault/config.hcl',
+        context={
+            'private_address': hookenv.unit_get('private-address') 
+        }
+    )
+    service_restart('vault')
+    set_state('vault.running')
+
+
+@when('vault.running')
+@when_not('vault.initialized')
+def initialize_vault():
+    log("Running initialize_vault now")
+    set_state('vault.initialized')
 
 
 def setup_upstart_jobs():
     hookenv.log('setting up upstart jobs')
-    working_dir = os.getcwd()
-    charm_upstart_conf = "/var/lib/charm/{}/upstart.conf".format('vault')
-    os.mkdir(os.path.dirname(charm_upstart_conf))
-    context = {'decoder_path': '{}/hooks/vault'.format(working_dir), 'name': 'vault'}
+    context = {
+        'vault_path': '/usr/local/bin/vault',
+        'name': 'vault',
+        'vault_options': '--config=/etc/vault/config.hcl'
+    }
+    render('upstart.conf', '/etc/init/vault.conf', context, perms=0o644)
+    service_stop('vault')
 
-    render('upstart.conf', charm_upstart_conf, context, perms=0o644)
-    log('copying {} to /etc/init'.format(charm_upstart_conf))
-    shutil.copy(charm_upstart_conf, '/etc/init/vault.conf')
+
+@hook('stop')
+def stop():
+    service_stop('vault')
+    remove_state('vault.running')
 
 
+@hook('install')
 def install():
     hookenv.log('Installing vault')
+    shutil.copyfile('{}/files/vault-0.5.0'.format(hookenv.charm_dir()), '/tmp/vault')
+    mkdir('/usr/local/bin')
+    shutil.move('/tmp/vault', '/usr/local/bin/vault')
     setup_upstart_jobs()
+    hookenv.open_port(8200)
