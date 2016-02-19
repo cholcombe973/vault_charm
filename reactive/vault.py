@@ -16,7 +16,7 @@ from charmhelpers.core.host import (
 )
 
 
-@when('consul.available')
+@when('consul.connected')
 @when_not('vault.running')
 def setup_vault(consul):
     render(
@@ -60,5 +60,6 @@ def install():
     shutil.copyfile('{}/files/vault-0.5.0'.format(hookenv.charm_dir()), '/tmp/vault')
     mkdir('/usr/local/bin')
     shutil.move('/tmp/vault', '/usr/local/bin/vault')
+    os.chmod('/usr/local/bin/vault', 0o755)
     setup_upstart_jobs()
     hookenv.open_port(8200)

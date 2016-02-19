@@ -11,6 +11,6 @@ description: |
     control and recording a detailed audit log.
 tags:
   - security
-requires:
+provides:
   consul:
-    interface: consul
+    interface: consul-agent
