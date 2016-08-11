@@ -11,6 +11,11 @@ description: |
     control and recording a detailed audit log.
 tags:
   - security
+subordinate: true
+requires:
+  juju-info:
+    interface: juju-info
+    scope: container
 provides:
   consul:
     interface: consul-agent
